@@ -1,0 +1,21 @@
+{
+  "name": "quran-hadith-birrstack",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Offline-first Quran and Hadith app built with BirrStack. BismiLLAH.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "birrstack-core": "file:../BirrStack/packages/birrstack-core",
+    "birrstack-compiler": "file:../BirrStack/packages/birrstack-compiler",
+    "birrstack-db": "file:../BirrStack/packages/birrstack-db"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0",
+    "typescript": "^5.5.0"
+  }
+}

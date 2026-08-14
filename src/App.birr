@@ -1,0 +1,447 @@
+<template>
+  <div class="app" data-theme="{{ theme }}">
+    <header class="header">
+      <div class="header-content">
+        <div class="header-title" birr:on:click="goHome">
+          <svg class="header-logo" width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2L2 7v10l10 5 10-5V7L12 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M12 22V12M2 7l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          </svg>
+          <span>Quran & Hadith</span>
+        </div>
+        <button class="theme-toggle" birr:on:click="toggleTheme" aria-label="Toggle theme">
+          <svg birr:if="isLight" width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <svg birr:if="isDark" width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="main">
+      <div birr:if="isHome" class="page">
+        <div class="home-hero">
+          <p class="bismillah">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>
+          <p class="bismillah-translation">In the name of Allah, the Entirely Merciful, the Especially Merciful.</p>
+        </div>
+        <div class="home-cards">
+          <div class="home-card home-card-quran" birr:on:click="goQuran">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+              <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <h3>Al-Quran</h3>
+            <p>114 Surahs</p>
+          </div>
+          <div class="home-card home-card-hadith" birr:on:click="goHadith">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+              <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <h3>Hadith</h3>
+            <p>6 Collections</p>
+          </div>
+        </div>
+        <div class="home-section">
+          <h3>Last Read</h3>
+          <p class="home-muted" birr:if="noProgress">No reading progress yet. Start reading the Quran.</p>
+        </div>
+      </div>
+
+      <div birr:if="isQuranList" class="page">
+        <h2 class="page-title">Al-Quran</h2>
+        <p class="page-subtitle">114 Surahs</p>
+        <div class="surah-list">
+          <div birr:for="surah in surahs" birr:key="surah.number" class="surah-item" birr:on:click="openSurah(surah.number)">
+            <div class="surah-number">{{ surah.number }}</div>
+            <div class="surah-info">
+              <div class="surah-name">{{ surah.transliteration }}</div>
+              <div class="surah-meta">{{ surah.englishName }} - {{ surah.numberOfAyahs }} ayahs - {{ surah.revelationType }}</div>
+            </div>
+            <div class="surah-arabic">{{ surah.name }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div birr:if="isSurah" class="page">
+        <div class="surah-header">
+          <button class="back-btn" birr:on:click="goQuran">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="surah-header-info">
+            <h2 class="surah-header-name">{{ currentSurahMeta.transliteration }}</h2>
+            <p class="surah-header-meta">{{ currentSurahMeta.englishName }} - {{ currentSurahMeta.numberOfAyahs }} ayahs</p>
+          </div>
+        </div>
+        <p class="bismillah" birr:if="hasText">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>
+        <div birr:if="hasText" class="ayah-list">
+          <div birr:for="ayah in currentAyahs" birr:key="ayah.number" class="ayah-item">
+            <div class="ayah-number">{{ ayah.number }}</div>
+            <p class="ayah-arabic">{{ ayah.arabic }}</p>
+            <p class="ayah-translation">{{ ayah.translation }}</p>
+            <button class="ayah-bookmark" birr:on:click="toggleAyahBookmark(surahNumber, ayah.number)">Save</button>
+          </div>
+        </div>
+        <div birr:if="!hasText" class="no-text-notice">
+          <p>Full text for this surah is not yet bundled in this build.</p>
+          <p class="home-muted">Available surahs: Al-Fatiha (1), Al-Asr (103), Al-Fil (105), and the last 10 surahs (105-114).</p>
+        </div>
+      </div>
+
+      <div birr:if="isHadithList" class="page">
+        <h2 class="page-title">Hadith Collections</h2>
+        <p class="page-subtitle">The Six Major Collections</p>
+        <div class="collection-list">
+          <div birr:for="col in collections" birr:key="col.id" class="collection-item" birr:on:click="openCollection(col.id)">
+            <div class="collection-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="collection-info">
+              <div class="collection-name">{{ col.name }}</div>
+              <div class="collection-arabic">{{ col.arabic }}</div>
+              <div class="collection-count">{{ col.count }} hadiths</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div birr:if="isHadithCollection" class="page">
+        <div class="surah-header">
+          <button class="back-btn" birr:on:click="goHadith">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="surah-header-info">
+            <h2 class="surah-header-name">{{ currentCollectionName }}</h2>
+            <p class="surah-header-meta">{{ collectionHadithCount }} hadiths shown</p>
+          </div>
+        </div>
+        <div class="hadith-list">
+          <div birr:for="hadith in currentHadiths" birr:key="hadith.id" class="hadith-item">
+            <div class="hadith-meta">
+              <span class="hadith-number">#{{ hadith.hadithNumber }}</span>
+              <span class="hadith-grade">{{ hadith.grade }}</span>
+            </div>
+            <p class="hadith-arabic">{{ hadith.arabic }}</p>
+            <p class="hadith-english">{{ hadith.english }}</p>
+            <p class="hadith-narrator">Narrated by: {{ hadith.narrator }}</p>
+            <button class="ayah-bookmark" birr:on:click="toggleHadithBookmark(hadith.id)">Save</button>
+          </div>
+        </div>
+      </div>
+
+      <div birr:if="isSearch" class="page">
+        <h2 class="page-title">Search</h2>
+        <input class="search-input" placeholder="Search Quran and Hadith..." birr:on:input="onSearchInput" />
+        <div birr:if="searchQuery" class="search-results">
+          <p class="search-summary">{{ searchResultsCount }} results for "{{ searchQuery }}"</p>
+          <div birr:for="result in searchResults" birr:key="result.id" class="search-result-item">
+            <span class="result-type">{{ result.type }}</span>
+            <p class="result-text">{{ result.text }}</p>
+          </div>
+        </div>
+        <p birr:if="!searchQuery" class="home-muted">Type to search across Quran and Hadith.</p>
+      </div>
+
+      <div birr:if="isBookmarks" class="page">
+        <h2 class="page-title">Saved Items</h2>
+        <p birr:if="bookmarksCount === 0" class="home-muted">No saved items yet. Bookmark ayahs and hadiths to find them here.</p>
+        <div birr:if="bookmarksCount > 0" class="bookmark-list">
+          <div birr:for="bm in bookmarks" birr:key="bm.id" class="bookmark-item">
+            <span class="result-type">{{ bm.type }}</span>
+            <p class="result-text">{{ bm.label }}</p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <nav class="bottom-nav">
+      <button class="nav-item {{ navHomeClass }}" birr:on:click="goHome">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Home</span>
+      </button>
+      <button class="nav-item {{ navQuranClass }}" birr:on:click="goQuran">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Quran</span>
+      </button>
+      <button class="nav-item {{ navHadithClass }}" birr:on:click="goHadith">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Hadith</span>
+      </button>
+      <button class="nav-item {{ navSearchClass }}" birr:on:click="goSearch">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Search</span>
+      </button>
+      <button class="nav-item {{ navBookmarksClass }}" birb:on:click="goBookmarks" birr:on:click="goBookmarks">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Saved</span>
+      </button>
+    </nav>
+  </div>
+</template>
+
+<script>
+import { signal, computed, effect } from 'birrstack-core';
+import { SURAHS } from './data/surah-metadata';
+import { getSurahText, hasSurahText } from './data/quran-text';
+import { HADITHS, COLLECTION_NAMES, searchHadiths } from './data/hadith-data';
+import { getThemeSignal, toggleTheme } from './lib/theme';
+import { getBookmarks, addBookmark, removeBookmark, getDB } from './lib/db';
+
+export default {
+  setup() {
+    const theme = getThemeSignal();
+    const isLight = computed(() => theme.value === 'light');
+    const isDark = computed(() => theme.value === 'dark');
+
+    // Routing
+    const routeName = signal('home');
+    const routeParams = signal({});
+
+    function handleHashChange() {
+      const hash = window.location.hash.slice(2) || '';
+      const parts = hash.split('/');
+      const route = parts[0] || '';
+      if (route === '' || route === '') { routeName.value = 'home'; routeParams.value = {}; }
+      else if (route === 'quran' && !parts[1]) { routeName.value = 'quran-list'; routeParams.value = {}; }
+      else if (route === 'quran' && parts[1]) { routeName.value = 'surah'; routeParams.value = { number: parts[1] }; loadSurah(Number(parts[1])); }
+      else if (route === 'hadith' && !parts[1]) { routeName.value = 'hadith-list'; routeParams.value = {}; }
+      else if (route === 'hadith' && parts[1]) { routeName.value = 'hadith-collection'; routeParams.value = { collection: parts[1] }; loadCollection(parts[1]); }
+      else if (route === 'search') { routeName.value = 'search'; routeParams.value = {}; }
+      else if (route === 'bookmarks') { routeName.value = 'bookmarks'; routeParams.value = {}; loadBookmarks(); }
+      else { routeName.value = 'home'; routeParams.value = {}; }
+      window.scrollTo(0, 0);
+    }
+    window.addEventListener('hashchange', handleHashChange);
+
+    const isHome = computed(() => routeName.value === 'home');
+    const isQuranList = computed(() => routeName.value === 'quran-list');
+    const isSurah = computed(() => routeName.value === 'surah');
+    const isHadithList = computed(() => routeName.value === 'hadith-list');
+    const isHadithCollection = computed(() => routeName.value === 'hadith-collection');
+    const isSearch = computed(() => routeName.value === 'search');
+    const isBookmarks = computed(() => routeName.value === 'bookmarks');
+
+    const navHomeClass = computed(() => isHome.value ? 'nav-active' : '');
+    const navQuranClass = computed(() => (isQuranList.value || isSurah.value) ? 'nav-active' : '');
+    const navHadithClass = computed(() => (isHadithList.value || isHadithCollection.value) ? 'nav-active' : '');
+    const navSearchClass = computed(() => isSearch.value ? 'nav-active' : '');
+    const navBookmarksClass = computed(() => isBookmarks.value ? 'nav-active' : '');
+
+    // Quran data
+    const surahs = SURAHS;
+    const surahNumber = signal(1);
+    const currentSurahMeta = computed(() => SURAHS.find(s => s.number === surahNumber.value) || SURAHS[0]);
+    const currentAyahs = signal([]);
+    const hasText = computed(() => currentAyahs.value.length > 0);
+
+    function loadSurah(num) {
+      surahNumber.value = num;
+      const text = getSurahText(num);
+      if (text) {
+        currentAyahs.value = text.ayahs;
+      } else {
+        currentAyahs.value = [];
+      }
+    }
+
+    // Hadith data
+    const collections = Object.entries(COLLECTION_NAMES).map(([id, info]) => ({ id, ...info }));
+    const currentHadiths = signal([]);
+    const currentCollectionName = computed(() => {
+      const c = routeParams.value.collection;
+      return c ? COLLECTION_NAMES[c]?.name || c : '';
+    });
+    const collectionHadithCount = computed(() => currentHadiths.value.length);
+
+    function loadCollection(colId) {
+      currentHadiths.value = HADITHS.filter(h => h.collection === colId);
+    }
+
+    // Search
+    const searchQuery = signal('');
+    const searchResults = signal([]);
+    const searchResultsCount = computed(() => searchResults.value.length);
+
+    function onSearchInput(e) {
+      const q = e.target.value;
+      searchQuery.value = q;
+      if (!q.trim()) { searchResults.value = []; return; }
+      const hadithResults = searchHadiths(q).map(h => ({ id: h.id, type: 'Hadith', text: h.english.slice(0, 120) + '...' }));
+      const quranResults = [];
+      for (const [num, surah] of Object.entries(getSurahText(1) ? { 1: getSurahText(1) } : {})) {
+        for (const ayah of surah.ayahs) {
+          if (ayah.translation.toLowerCase().includes(q.toLowerCase())) {
+            quranResults.push({ id: `q-${num}-${ayah.number}`, type: `Quran ${num}:${ayah.number}`, text: ayah.translation.slice(0, 120) + '...' });
+          }
+        }
+      }
+      searchResults.value = [...quranResults, ...hadithResults];
+    }
+
+    // Bookmarks
+    const bookmarks = signal([]);
+    const bookmarksCount = computed(() => bookmarks.value.length);
+    const noProgress = computed(() => true);
+
+    async function loadBookmarks() {
+      try {
+        const bms = await getBookmarks();
+        bookmarks.value = bms;
+      } catch (e) {
+        bookmarks.value = [];
+      }
+    }
+
+    async function toggleAyahBookmark(sNum, aNum) {
+      try {
+        const meta = SURAHS.find(s => s.number === sNum);
+        const label = `${meta?.translitation || 'Surah'} ${sNum}:${aNum}`;
+        await addBookmark({ type: 'ayah', surahNumber: sNum, ayahNumber: aNum, label });
+        loadBookmarks();
+      } catch (e) { console.error('Bookmark error:', e); }
+    }
+
+    async function toggleHadithBookmark(hId) {
+      try {
+        const hadith = HADITHS.find(h => h.id === hId);
+        const label = `${hadith?.collection} #${hadith?.hadithNumber}`;
+        await addBookmark({ type: 'hadith', hadithId: hId, label });
+        loadBookmarks();
+      } catch (e) { console.error('Bookmark error:', e); }
+    }
+
+    // Navigation
+    function goHome() { window.location.hash = '#/'; }
+    function goQuran() { window.location.hash = '#/quran'; }
+    function goHadith() { window.location.hash = '#/hadith'; }
+    function goSearch() { window.location.hash = '#/search'; }
+    function goBookmarks() { window.location.hash = '#/bookmarks'; }
+    function openSurah(num) { window.location.hash = '#/quran/' + num; }
+    function openCollection(id) { window.location.hash = '#/hadith/' + id; }
+
+    // Init: handle initial hash
+    setTimeout(handleHashChange, 0);
+
+    return {
+      theme, isLight, isDark,
+      isHome, isQuranList, isSurah, isHadithList, isHadithCollection, isSearch, isBookmarks,
+      navHomeClass, navQuranClass, navHadithClass, navSearchClass, navBookmarksClass,
+      toggleTheme,
+      surahs, surahNumber, currentSurahMeta, currentAyahs, hasText, openSurah,
+      collections, currentHadiths, currentCollectionName, collectionHadithCount,
+      searchQuery, searchResults, searchResultsCount, onSearchInput,
+      bookmarks, bookmarksCount, noProgress, loadBookmarks,
+      toggleAyahBookmark, toggleHadithBookmark,
+      goHome, goQuran, goHadith, goSearch, goBookmarks, openCollection,
+    };
+  },
+};
+</script>
+
+<style scoped>
+.app {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --bg: #E9FBF1;
+  --text: #181F25;
+  --surface: #FFFFFF;
+  --primary: #05B34D;
+  --accent: #F2B91C;
+  --border: #d1e8db;
+  --muted: #5a6c6a;
+}
+.app[data-theme="dark"] {
+  --bg: #181F25;
+  --text: #E9FBF1;
+  --surface: #232b32;
+  --primary: #05B34D;
+  --accent: #F2B91C;
+  --border: #2d3a44;
+  --muted: #8898a0;
+}
+.header { position: sticky; top: 0; z-index: 100; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 16px; }
+.header-content { display: flex; align-items: center; justify-content: space-between; height: 56px; max-width: 600px; margin: 0 auto; }
+.header-title { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 700; color: var(--primary); cursor: pointer; }
+.theme-toggle { background: none; border: none; color: var(--text); cursor: pointer; padding: 8px; border-radius: 8px; display: flex; align-items: center; }
+.theme-toggle:active { background: var(--border); }
+.main { max-width: 600px; margin: 0 auto; padding: 16px; padding-bottom: 80px; }
+.page { animation: fadeIn 0.2s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.page-title { font-size: 24px; font-weight: 700; color: var(--text); margin: 0 0 4px 0; }
+.page-subtitle { font-size: 14px; color: var(--muted); margin: 0 0 20px 0; }
+.home-hero { text-align: center; padding: 32px 16px; background: var(--surface); border-radius: 16px; margin-bottom: 20px; }
+.bismillah { font-size: 24px; color: var(--primary); margin: 0 0 8px 0; font-weight: 600; }
+.bismillah-translation { font-size: 13px; color: var(--muted); margin: 0; }
+.home-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+.home-card { background: var(--surface); border-radius: 16px; padding: 24px 16px; text-align: center; cursor: pointer; transition: transform 0.15s ease; border: 1px solid var(--border); }
+.home-card:active { transform: scale(0.97); }
+.home-card h3 { color: var(--primary); margin: 8px 0 4px 0; font-size: 16px; }
+.home-card p { color: var(--muted); margin: 0; font-size: 12px; }
+.home-card-quran { color: var(--primary); }
+.home-card-hadith { color: var(--accent); }
+.home-card-hadith h3 { color: var(--accent); }
+.home-section h3 { font-size: 16px; color: var(--text); margin: 0 0 12px 0; }
+.home-muted { color: var(--muted); font-size: 14px; }
+.surah-list { display: flex; flex-direction: column; gap: 4px; }
+.surah-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--surface); border-radius: 12px; cursor: pointer; transition: transform 0.1s ease; border: 1px solid var(--border); }
+.surah-item:active { transform: scale(0.98); }
+.surah-number { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: var(--bg); color: var(--primary); border-radius: 8px; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+.surah-info { flex: 1; min-width: 0; }
+.surah-name { font-weight: 600; font-size: 15px; color: var(--text); }
+.surah-meta { font-size: 12px; color: var(--muted); }
+.surah-arabic { font-size: 18px; color: var(--primary); }
+.surah-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.back-btn { background: none; border: none; color: var(--text); cursor: pointer; padding: 8px; }
+.surah-header-info { flex: 1; }
+.surah-header-name { font-size: 20px; font-weight: 700; margin: 0; color: var(--text); }
+.surah-header-meta { font-size: 13px; color: var(--muted); margin: 2px 0 0 0; }
+.ayah-list { display: flex; flex-direction: column; gap: 16px; }
+.ayah-item { background: var(--surface); border-radius: 12px; padding: 16px; border: 1px solid var(--border); position: relative; }
+.ayah-number { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: var(--bg); color: var(--primary); border-radius: 50%; font-weight: 700; font-size: 12px; margin-bottom: 12px; }
+.ayah-arabic { font-size: 22px; line-height: 1.8; text-align: right; color: var(--text); margin: 0 0 12px 0; direction: rtl; }
+.ayah-translation { font-size: 15px; line-height: 1.6; color: var(--text); margin: 0 0 8px 0; }
+.ayah-bookmark { background: none; border: 1px solid var(--border); color: var(--muted); padding: 4px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+.ayah-bookmark:active { background: var(--bg); }
+.no-text-notice { background: var(--surface); border-radius: 12px; padding: 24px; text-align: center; border: 1px solid var(--border); }
+.collection-list { display: flex; flex-direction: column; gap: 8px; }
+.collection-item { display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--surface); border-radius: 12px; cursor: pointer; border: 1px solid var(--border); transition: transform 0.1s ease; }
+.collection-item:active { transform: scale(0.98); }
+.collection-icon { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: var(--bg); color: var(--accent); border-radius: 10px; flex-shrink: 0; }
+.collection-info { flex: 1; }
+.collection-name { font-weight: 600; font-size: 15px; color: var(--text); }
+.collection-arabic { font-size: 14px; color: var(--primary); }
+.collection-count { font-size: 12px; color: var(--muted); }
+.hadith-list { display: flex; flex-direction: column; gap: 16px; }
+.hadith-item { background: var(--surface); border-radius: 12px; padding: 16px; border: 1px solid var(--border); }
+.hadith-meta { display: flex; justify-content: space-between; margin-bottom: 12px; }
+.hadith-number { font-size: 12px; color: var(--muted); font-weight: 600; }
+.hadith-grade { font-size: 12px; color: var(--primary); font-weight: 600; background: var(--bg); padding: 2px 8px; border-radius: 4px; }
+.hadith-arabic { font-size: 18px; line-height: 1.8; text-align: right; color: var(--text); margin: 0 0 12px 0; direction: rtl; }
+.hadith-english { font-size: 14px; line-height: 1.6; color: var(--text); margin: 0 0 8px 0; }
+.hadith-narrator { font-size: 12px; color: var(--muted); margin: 0 0 8px 0; font-style: italic; }
+.search-input { width: 100%; padding: 12px 16px; border: 1px solid var(--border); border-radius: 12px; font-size: 16px; background: var(--surface); color: var(--text); box-sizing: border-box; margin-bottom: 16px; }
+.search-input:focus { outline: none; border-color: var(--primary); }
+.search-summary { font-size: 13px; color: var(--muted); margin: 0 0 12px 0; }
+.search-result-item, .bookmark-item { background: var(--surface); border-radius: 10px; padding: 12px; margin-bottom: 8px; border: 1px solid var(--border); }
+.result-type { font-size: 11px; color: var(--primary); font-weight: 600; text-transform: uppercase; }
+.result-text { font-size: 14px; color: var(--text); margin: 4px 0 0 0; line-height: 1.5; }
+.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); display: flex; max-width: 600px; margin: 0 auto; z-index: 100; }
+.nav-item { flex: 1; background: none; border: none; color: var(--muted); padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; font-weight: 500; cursor: pointer; transition: color 0.15s ease; }
+.nav-item span { font-size: 11px; }
+.nav-active { color: var(--primary); }
+</style>
