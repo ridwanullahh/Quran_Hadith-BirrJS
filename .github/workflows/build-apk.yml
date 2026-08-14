@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build & Release Android APK
 
 on:
   push:
@@ -14,6 +14,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME:-1.0.0}" >> $GITHUB_OUTPUT
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -42,22 +46,68 @@ jobs:
           mkdir -p android-app/app/src/main/java/com/birrstack/quranhadith
           mkdir -p android-app/app/src/main/assets/www
           mkdir -p android-app/app/src/main/res/values
+          mkdir -p android-app/app/src/main/res/drawable
+          mkdir -p android-app/app/src/main/res/mipmap-hdpi
+          mkdir -p android-app/app/src/main/res/mipmap-mdpi
+          mkdir -p android-app/app/src/main/res/mipmap-xhdpi
+          mkdir -p android-app/app/src/main/res/mipmap-xxhdpi
+          mkdir -p android-app/app/src/main/res/mipmap-xxxhdpi
           cp -r dist/* android-app/app/src/main/assets/www/
 
-          # AndroidManifest.xml
+          # Generate app icon (simple green circle with book SVG → PNG via ImageMagick or use built-in)
+          # For now, use Android built-in icon
+          cat > android-app/app/src/main/res/values/colors.xml << 'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="primary">#05B34D</color>
+              <color name="white">#FFFFFF</color>
+              <color name="splash_bg">#05B34D</color>
+          </resources>
+          XML
+
+          # Splash screen drawable
+          cat > android-app/app/src/main/res/drawable/splash_background.xml << 'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+              <item android:drawable="@color/splash_bg"/>
+              <item>
+                  <bitmap
+                      android:gravity="center"
+                      android:src="@android:drawable/ic_dialog_info"/>
+              </item>
+          </layer-list>
+          XML
+
+          # Splash screen theme
+          cat > android-app/app/src/main/res/values/styles.xml << 'XML'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="AppTheme" parent="android:Theme.Material.NoActionBar">
+                  <item name="android:windowBackground">@drawable/splash_background</item>
+                  <item name="android:statusBarColor">@color/primary</item>
+              </style>
+              <style name="SplashTheme" parent="AppTheme">
+                  <item name="android:windowBackground">@drawable/splash_background</item>
+              </style>
+          </resources>
+          XML
+
+          # AndroidManifest.xml with proper app name and splash
           cat > android-app/app/src/main/AndroidManifest.xml << 'MANIFEST'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <application
                   android:label="Quran Hadith"
                   android:icon="@android:drawable/ic_dialog_info"
-                  android:theme="@android:style/Theme.Material.NoActionBar"
+                  android:roundIcon="@android:drawable/ic_dialog_info"
+                  android:theme="@style/SplashTheme"
                   android:allowBackup="false"
                   android:usesCleartextTraffic="true">
                   <activity
                       android:name=".MainActivity"
                       android:exported="true"
-                      android:configChanges="orientation|screenSize|keyboardHidden">
+                      android:configChanges="orientation|screenSize|keyboardHidden"
+                      android:screenOrientation="portrait">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
@@ -68,11 +118,13 @@ jobs:
           </manifest>
           MANIFEST
 
-          # MainActivity.java
+          # MainActivity.java with splash → main theme transition
           cat > android-app/app/src/main/java/com/birrstack/quranhadith/MainActivity.java << 'JAVA'
           package com.birrstack.quranhadith;
           import android.app.Activity;
           import android.os.Bundle;
+          import android.os.Handler;
+          import android.os.Looper;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
           import android.webkit.WebSettings;
@@ -80,26 +132,30 @@ jobs:
               private WebView webView;
               @Override
               protected void onCreate(Bundle savedInstanceState) {
+                  // Keep splash theme for 1.5 seconds for a professional feel
+                  setTheme(R.style.SplashTheme);
                   super.onCreate(savedInstanceState);
-                  webView = new WebView(this);
-                  setContentView(webView);
-                  WebSettings settings = webView.getSettings();
-                  settings.setJavaScriptEnabled(true);
-                  settings.setDomStorageEnabled(true);
-                  settings.setAllowFileAccess(true);
-                  settings.setMediaPlaybackRequiresUserGesture(false);
-                  webView.setWebViewClient(new WebViewClient());
-                  webView.loadUrl("file:///android_asset/www/index.html");
+                  new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                      setTheme(R.style.AppTheme);
+                      webView = new WebView(this);
+                      setContentView(webView);
+                      WebSettings settings = webView.getSettings();
+                      settings.setJavaScriptEnabled(true);
+                      settings.setDomStorageEnabled(true);
+                      settings.setAllowFileAccess(true);
+                      settings.setMediaPlaybackRequiresUserGesture(false);
+                      webView.setWebViewClient(new WebViewClient());
+                      webView.loadUrl("file:///android_asset/www/index.html");
+                  }, 1500);
               }
               @Override
               public void onBackPressed() {
-                  if (webView.canGoBack()) webView.goBack();
+                  if (webView != null && webView.canGoBack()) webView.goBack();
                   else super.onBackPressed();
               }
           }
           JAVA
 
-          # strings.xml
           cat > android-app/app/src/main/res/values/strings.xml << 'STRINGS'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
@@ -107,7 +163,7 @@ jobs:
           </resources>
           STRINGS
 
-          # settings.gradle
+          # Gradle files
           cat > android-app/settings.gradle << 'GRADLE'
           pluginManagement {
               repositories { google(); mavenCentral(); gradlePluginPortal() }
@@ -117,17 +173,15 @@ jobs:
               repositories { google(); mavenCentral() }
           }
           include ':app'
-          rootProject.name = "QuranHadith"
+          rootProject.name = "Quran Hadith"
           GRADLE
 
-          # build.gradle (project)
           cat > android-app/build.gradle << 'GRADLE'
           plugins {
               id 'com.android.application' version '8.1.0' apply false
           }
           GRADLE
 
-          # app/build.gradle
           cat > android-app/app/build.gradle << 'GRADLE'
           plugins { id 'com.android.application' }
           android {
@@ -138,27 +192,41 @@ jobs:
                   minSdk 24
                   targetSdk 34
                   versionCode 1
-                  versionName "1.0.0"
+                  versionName "${{ steps.version.outputs.VERSION }}"
+              }
+              signingConfigs {
+                  release {
+                      storeFile file(System.getenv('KEYSTORE_FILE') ?: '../birrstack-release.keystore')
+                      storePassword System.getenv('KEYSTORE_PASSWORD') ?: 'birrstack123'
+                      keyAlias System.getenv('KEY_ALIAS') ?: 'birrstack'
+                      keyPassword System.getenv('KEY_PASSWORD') ?: 'birrstack123'
+                  }
               }
               buildTypes {
                   release {
                       minifyEnabled false
-                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+                      signingConfig signingConfigs.release
                   }
               }
           }
           dependencies { implementation 'androidx.webkit:webkit:1.10.0' }
           GRADLE
 
-          # gradle.properties
           cat > android-app/gradle.properties << 'PROPS'
           android.useAndroidX=true
           android.enableJetifier=true
           org.gradle.jvmargs=-Xmx2048m
           PROPS
 
-          # local.properties
           echo "sdk.dir=$ANDROID_HOME" > android-app/local.properties
+
+      - name: Decode signing keystore
+        run: |
+          echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 -d > android-app/birrstack-release.keystore
+          # Fallback: generate a debug keystore if secret not set
+          if [ ! -s android-app/birrstack-release.keystore ]; then
+            keytool -genkeypair -v -keystore android-app/birrstack-release.keystore -alias birrstack -keyalg RSA -keysize 2048 -validity 10000 -storepass birrstack123 -keypass birrstack123 -dname "CN=BirrStack, OU=Dev, O=BirrStack, L=Lagos, C=NG"
+          fi
 
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
@@ -166,22 +234,54 @@ jobs:
           gradle-version: '8.1'
           build-root-directory: android-app
 
-      - name: Build APK
+      - name: Build signed APK
         working-directory: android-app
         run: gradle assembleRelease --no-daemon --stacktrace
+        env:
+          KEYSTORE_FILE: '../birrstack-release.keystore'
+          KEYSTORE_PASSWORD: birrstack123
+          KEY_ALIAS: birrstack
+          KEY_PASSWORD: birrstack123
+
+      - name: Rename APK with app name and version
+        run: |
+          APK_PATH=$(find android-app/app/build/outputs/apk/release -name "*.apk" | head -1)
+          if [ -n "$APK_PATH" ]; then
+            cp "$APK_PATH" "Quran-Hadith-${{ steps.version.outputs.VERSION }}.apk"
+            echo "APK renamed to Quran-Hadith-${{ steps.version.outputs.VERSION }}.apk"
+            ls -la "Quran-Hadith-${{ steps.version.outputs.VERSION }}.apk"
+          fi
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: quran-hadith-apk
-          path: android-app/app/build/outputs/apk/release/*.apk
+          path: "Quran-Hadith-*.apk"
 
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: android-app/app/build/outputs/apk/release/*.apk
-          generate_release_notes: true
+          files: "Quran-Hadith-*.apk"
+          name: "Quran Hadith ${{ steps.version.outputs.VERSION }}"
+          body: |
+            # Quran Hadith ${{ steps.version.outputs.VERSION }}
+
+            BismiLLAH Ar-Rahman Ar-Raheem.
+
+            ## Download
+
+            Download the APK file below and install it on your Android device.
+
+            **Note:** You may need to enable "Install from unknown sources" in your Android settings.
+
+            ## Features
+            - Full Quran with 10 translations
+            - 6 Hadith collections (1200+ hadiths)
+            - Audio recitation (5 reciters)
+            - Offline support
+            - Dark/light mode
+          generate_release_notes: false
           draft: false
           prerelease: false
         env:
