@@ -5,7 +5,7 @@
  *
  * Backends:
  *  - MemoryBackend: in-memory (default, for tests and ephemeral data)
- *  - FilesystemBackend: Node.js fs (for native/server)
+ *  - FilesystemBackend: Node.js fs (for native/server) — lazily loaded
  *  - BrowserBackend: IndexedDB (for web apps)
  *
  * All backends implement the same StorageBackend interface.
@@ -25,10 +25,16 @@ export declare class MemoryBackend implements StorageBackend {
     list(prefix: string): Promise<string[]>;
     remove(key: string): Promise<void>;
 }
-/** Node.js filesystem backend. */
+/**
+ * Node.js filesystem backend.
+ * Uses dynamic require() to avoid bundling node:* in browser builds.
+ * Only works in Node.js environments.
+ */
 export declare class FilesystemBackend implements StorageBackend {
     private baseDir;
     constructor(baseDir: string);
+    private isNode;
+    private nodeFs;
     read(key: string): Promise<Uint8Array | null>;
     write(key: string, data: Uint8Array): Promise<void>;
     list(prefix: string): Promise<string[]>;

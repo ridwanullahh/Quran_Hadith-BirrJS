@@ -2,11 +2,12 @@ import { defineConfig } from 'vite';
 import { birrVitePlugin } from './vite-plugin-birr.js';
 
 export default defineConfig({
+  base: './',  // CRITICAL: relative paths for PaaS subdirectory hosting
   plugins: [birrVitePlugin()],
   server: {
     port: 5181,
-    host: true, // allow all hosts for dev
-    allowedHosts: true, // allow all hosts
+    host: true,
+    allowedHosts: true,
   },
   preview: {
     port: 4173,
@@ -15,7 +16,7 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    chunkSizeWarningLimit: 2000, // Quran translations are large but lazy-loaded
+    chunkSizeWarningLimit: 2000,
     rollupOptions: {
       external: ['node:fs/promises', 'node:path', 'node:fs'],
       output: {

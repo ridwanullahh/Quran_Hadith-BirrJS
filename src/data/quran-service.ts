@@ -1,5 +1,5 @@
 /**
- * Quran data service — uses quran-json npm package for full offline Quran.
+ * Quran data service — fetches from public/quran/ folder.
  * BismiLLAH Ar-Rahman Ar-Raheem.
  *
  * Features:
@@ -7,7 +7,7 @@
  *  - 10+ translations (English, Bengali, Spanish, French, Indonesian, Russian, Swedish, Turkish, Urdu, Chinese)
  *  - Transliteration
  *  - Per-ayah access
- *  - Lazy-loaded per surah (not bundled all at once)
+ *  - Lazy-loaded per surah (only fetches when requested)
  *  - Audio recitation URLs (streaming + offline download)
  */
 
@@ -37,7 +37,7 @@ export const RECITERS = [
 ] as const;
 
 export interface AyahData {
-  number: number;           // ayah number within surah
+  number: number;
   arabic: string;
   transliteration?: string;
   translations: Record<string, string>;
@@ -45,10 +45,10 @@ export interface AyahData {
 
 export interface SurahData {
   number: number;
-  name: string;             // Arabic name
+  name: string;
   transliteration: string;
-  translation: string;      // English name
-  type: string;             // meccan/medinan
+  translation: string;
+  type: string;
   totalVerses: number;
   ayahs: AyahData[];
 }
@@ -56,10 +56,25 @@ export interface SurahData {
 // Cache for loaded surahs
 const surahCache = new Map<string, SurahData>();
 
+// Cache for translation data (loaded once per translation)
+const translationCache = new Map<string, any[]>();
+
+async function loadTranslationFile(file: string): Promise<any[]> {
+  if (translationCache.has(file)) return translationCache.get(file)!;
+  try {
+    const resp = await fetch(`./quran/translations/${file}`);
+    if (!resp.ok) throw new Error(`Failed to load ${file}`);
+    const data = await resp.json();
+    translationCache.set(file, data);
+    return data;
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Load a surah with a specific translation.
  * Lazy-loaded — only fetches the data when requested.
- * Only loads the requested translation to keep bundle small.
  */
 export async function loadSurah(surahNumber: number, translationCode: TranslationCode = 'en'): Promise<SurahData> {
   const cacheKey = `${surahNumber}-${translationCode}`;
@@ -68,14 +83,16 @@ export async function loadSurah(surahNumber: number, translationCode: Translatio
   }
 
   // Load the main chapter (Arabic + transliteration)
-  const chapter = await import(`quran-json/dist/chapters/${surahNumber}.json`);
+  const chapterResp = await fetch(`./quran/chapters/${surahNumber}.json`);
+  if (!chapterResp.ok) throw new Error(`Failed to load surah ${surahNumber}`);
+  const chapter = await chapterResp.json();
 
-  // Load only the requested translation (not all 10)
+  // Load the requested translation
   const trFile = TRANSLATIONS.find(t => t.code === translationCode)?.file || 'quran_en.json';
   let translations: Record<number, string> = {};
   try {
-    const fullTranslation = await import(`quran-json/dist/${trFile}`);
-    const surahTr = fullTranslation.default?.[surahNumber - 1] || fullTranslation[surahNumber - 1];
+    const fullTranslation = await loadTranslationFile(trFile);
+    const surahTr = fullTranslation[surahNumber - 1];
     if (surahTr?.verses) {
       for (const v of surahTr.verses) {
         translations[v.id] = v.translation;
@@ -83,19 +100,6 @@ export async function loadSurah(surahNumber: number, translationCode: Translatio
     }
   } catch {
     // Translation not available
-  }
-
-  // Also load English as fallback if a different translation was requested
-  if (translationCode !== 'en') {
-    try {
-      const enTranslation = await import(`quran-json/dist/quran_en.json`);
-      const surahEn = enTranslation.default?.[surahNumber - 1] || enTranslation[surahNumber - 1];
-      if (surahEn?.verses) {
-        for (const v of surahEn.verses) {
-          if (!translations[v.id]) translations[v.id] = v.translation;
-        }
-      }
-    } catch { /* ignore */ }
   }
 
   // Build ayah data
@@ -118,13 +122,12 @@ export async function loadSurah(surahNumber: number, translationCode: Translatio
     ayahs,
   };
 
-  surahCache.set(surahNumber, surah);
+  surahCache.set(cacheKey, surah);
   return surah;
 }
 
 /**
  * Get the audio URL for a specific ayah.
- * Format: {baseUrl}/{surah padded 3}{ayah padded 3}.mp3
  */
 export function getAyahAudioUrl(surahNumber: number, ayahNumber: number, reciterId: string = 'ar_alafasy'): string {
   const reciter = RECITERS.find(r => r.id === reciterId) || RECITERS[0]!;
@@ -138,11 +141,10 @@ export function getAyahAudioUrl(surahNumber: number, ayahNumber: number, reciter
  */
 export function getSurahAudioUrl(surahNumber: number, reciterId: string = 'ar_alafasy'): string {
   const reciter = RECITERS.find(r => r.id === reciterId) || RECITERS[0]!;
-  // Use QuranCentral format for full surah audio
   return `https://download.quranicaudio.com/quran/${reciter.id.replace('ar_', '')}/${String(surahNumber).padStart(3, '0')}.mp3`;
 }
 
-/** Get surah list metadata (static — doesn't require loading full text). */
+/** Get surah list metadata (static — all 114 surahs). */
 export const SURAHS_META = [
   { number: 1, name: 'الفاتحة', transliteration: 'Al-Fatihah', englishName: 'Al-Fatihah', ayahs: 7, type: 'Meccan' },
   { number: 2, name: 'البقرة', transliteration: 'Al-Baqarah', englishName: 'Al-Baqarah', ayahs: 286, type: 'Medinan' },
@@ -259,21 +261,3 @@ export const SURAHS_META = [
   { number: 113, name: 'الفلق', transliteration: 'Al-Falaq', englishName: 'Al-Falaq', ayahs: 5, type: 'Meccan' },
   { number: 114, name: 'الناس', transliteration: 'An-Nas', englishName: 'An-Nas', ayahs: 6, type: 'Meccan' },
 ];
-
-/** Search across Quran text (requires loading surahs — use for targeted search). */
-export async function searchQuran(query: string, translationCode: TranslationCode = 'en'): Promise<Array<{ surah: number; ayah: number; text: string }>> {
-  const q = query.toLowerCase().trim();
-  if (!q) return [];
-  const results: Array<{ surah: number; ayah: number; text: string }> = [];
-
-  // Search through available surahs (limited to loaded ones for performance)
-  for (const [num, surah] of surahCache) {
-    for (const ayah of surah.ayahs) {
-      const tr = ayah.translations[translationCode] || ayah.translations['en'] || '';
-      if (tr.toLowerCase().includes(q) || ayah.arabic.includes(query)) {
-        results.push({ surah: num, ayah: ayah.number, text: tr || ayah.arabic });
-      }
-    }
-  }
-  return results;
-}

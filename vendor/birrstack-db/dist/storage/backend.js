@@ -5,7 +5,7 @@
  *
  * Backends:
  *  - MemoryBackend: in-memory (default, for tests and ephemeral data)
- *  - FilesystemBackend: Node.js fs (for native/server)
+ *  - FilesystemBackend: Node.js fs (for native/server) — lazily loaded
  *  - BrowserBackend: IndexedDB (for web apps)
  *
  * All backends implement the same StorageBackend interface.
@@ -31,17 +31,34 @@ export class MemoryBackend {
         this.store.delete(key);
     }
 }
-/** Node.js filesystem backend. */
+/**
+ * Node.js filesystem backend.
+ * Uses dynamic require() to avoid bundling node:* in browser builds.
+ * Only works in Node.js environments.
+ */
 export class FilesystemBackend {
     baseDir;
     constructor(baseDir) {
         this.baseDir = baseDir;
     }
+    isNode() {
+        return typeof process !== 'undefined' && process.versions?.node !== undefined;
+    }
+    async nodeFs() {
+        if (!this.isNode())
+            throw new Error('FilesystemBackend requires Node.js');
+        // Use createRequire to avoid Vite/Rollup from detecting node:* imports
+        const { createRequire } = await import('module');
+        const require = createRequire(import.meta.url);
+        return {
+            fs: require('fs/promises'),
+            path: require('path'),
+        };
+    }
     async read(key) {
         try {
-            const { readFile } = await import('node:fs/promises');
-            const { join } = await import('node:path');
-            const data = await readFile(join(this.baseDir, key));
+            const { fs, path } = await this.nodeFs();
+            const data = await fs.readFile(path.join(this.baseDir, key));
             return new Uint8Array(data);
         }
         catch {
@@ -49,28 +66,25 @@ export class FilesystemBackend {
         }
     }
     async write(key, data) {
-        const { writeFile, mkdir } = await import('node:fs/promises');
-        const { join, dirname } = await import('node:path');
-        const fullPath = join(this.baseDir, key);
-        await mkdir(dirname(fullPath), { recursive: true });
-        await writeFile(fullPath, data);
+        const { fs, path } = await this.nodeFs();
+        const fullPath = path.join(this.baseDir, key);
+        await fs.mkdir(path.dirname(fullPath), { recursive: true });
+        await fs.writeFile(fullPath, data);
     }
     async list(prefix) {
-        const { readdir } = await import('node:fs/promises');
-        const { join } = await import('node:path');
         try {
-            const entries = await readdir(join(this.baseDir, prefix), { recursive: true });
-            return entries.map(e => prefix + '/' + e.toString());
+            const { fs, path } = await this.nodeFs();
+            const entries = await fs.readdir(path.join(this.baseDir, prefix), { recursive: true });
+            return entries.map((e) => prefix + '/' + e.toString());
         }
         catch {
             return [];
         }
     }
     async remove(key) {
-        const { unlink } = await import('node:fs/promises');
-        const { join } = await import('node:path');
         try {
-            await unlink(join(this.baseDir, key));
+            const { fs, path } = await this.nodeFs();
+            await fs.unlink(path.join(this.baseDir, key));
         }
         catch {
             // ignore
@@ -150,7 +164,7 @@ export function defaultBackend(name) {
     if (typeof window !== 'undefined' && 'indexedDB' in window) {
         return new BrowserBackend(name);
     }
-    // Node: use a temp dir by default
-    return new FilesystemBackend(`./.birrdb/${name}`);
+    // Node: use MemoryBackend by default (FilesystemBackend requires explicit instantiation)
+    return new MemoryBackend();
 }
 //# sourceMappingURL=backend.js.map
