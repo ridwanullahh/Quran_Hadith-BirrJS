@@ -1,0 +1,29 @@
+{
+  "name": "birrstack-db",
+  "version": "0.0.1",
+  "description": "BirrDB — lightweight embedded columnar database with dictionary compression and realtime subscriptions. BismiLLAH.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rimraf dist .tsbuildinfo"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0",
+    "rimraf": "^5.0.0",
+    "@types/node": "^20.0.0"
+  },
+  "files": ["dist", "README.md"]
+}

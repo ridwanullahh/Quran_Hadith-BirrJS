@@ -1,5 +1,6 @@
 node_modules/
-dist/
+/dist/
 .env
 *.log
 .birrdb/
+vendor/*/node_modules/

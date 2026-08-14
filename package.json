@@ -7,15 +7,18 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview --host --port 4173"
   },
   "dependencies": {
-    "birrstack-core": "file:../BirrStack/packages/birrstack-core",
-    "birrstack-compiler": "file:../BirrStack/packages/birrstack-compiler",
-    "birrstack-db": "file:../BirrStack/packages/birrstack-db"
+    "birrstack-core": "file:./vendor/birrstack-core",
+    "birrstack-compiler": "file:./vendor/birrstack-compiler",
+    "birrstack-db": "file:./vendor/birrstack-db",
+    "vite": "^5.4.0"
   },
   "devDependencies": {
-    "vite": "^5.4.0",
     "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }
