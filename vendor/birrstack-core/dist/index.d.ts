@@ -14,6 +14,10 @@ export { mount, defineComponent, watch, onMount, onUnmount, type ComponentDefini
 export { Router, createRouter, linkProps, registerRouter, type RouteDefinition, type RouteLocation, type RouterOptions, type RouterMode, } from './router/index.js';
 export { initErrorCapture, mountErrorOverlay, createErrorOverlay, logError, clearErrors, dismissError, showOverlay, hideOverlay, getErrors, isOverlayVisible, resolveImportError, type BirrError, } from './error/index.js';
 export { setDebugEnabled, isDebugEnabled, profileRender, getProfileData, clearProfileData, inspectSignals, debug, } from './debug/index.js';
+export { useFetch, prefetch, clearFetchCache, type FetchOptions, type FetchResult, } from './fetch/index.js';
+export { configureLoader, showLoader, hideLoader, isLoading, mountLoader, withLoader, type LoaderOptions, } from './loader/index.js';
+export { renderToString, renderToDocument, type SSRContext, } from './ssr/index.js';
+export { configureUtilities, generateUtilityCss, injectUtilityCss, type UtilityConfig, } from './utils/index.js';
 /** BirrStack version. */
-export declare const VERSION = "0.0.2";
+export declare const VERSION = "0.0.3";
 //# sourceMappingURL=index.d.ts.map
