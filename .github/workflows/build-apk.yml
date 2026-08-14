@@ -42,6 +42,8 @@ jobs:
         run: npm run build
 
       - name: Prepare Android project
+        env:
+          APP_VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           mkdir -p android-app/app/src/main/java/com/birrstack/quranhadith
           mkdir -p android-app/app/src/main/assets/www
@@ -192,7 +194,7 @@ jobs:
                   minSdk 24
                   targetSdk 34
                   versionCode 1
-                  versionName "${{ steps.version.outputs.VERSION }}"
+                  versionName "$APP_VERSION"
               }
               signingConfigs {
                   release {
@@ -244,12 +246,14 @@ jobs:
           KEY_PASSWORD: birrstack123
 
       - name: Rename APK with app name and version
+        env:
+          APP_VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           APK_PATH=$(find android-app/app/build/outputs/apk/release -name "*.apk" | head -1)
           if [ -n "$APK_PATH" ]; then
-            cp "$APK_PATH" "Quran-Hadith-${{ steps.version.outputs.VERSION }}.apk"
-            echo "APK renamed to Quran-Hadith-${{ steps.version.outputs.VERSION }}.apk"
-            ls -la "Quran-Hadith-${{ steps.version.outputs.VERSION }}.apk"
+            cp "$APK_PATH" "Quran-Hadith-$APP_VERSION.apk"
+            echo "APK renamed to Quran-Hadith-$APP_VERSION.apk"
+            ls -la "Quran-Hadith-$APP_VERSION.apk"
           fi
 
       - name: Upload APK artifact
