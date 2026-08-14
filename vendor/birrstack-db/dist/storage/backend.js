@@ -47,12 +47,12 @@ export class FilesystemBackend {
     async nodeFs() {
         if (!this.isNode())
             throw new Error('FilesystemBackend requires Node.js');
-        // Use createRequire to avoid Vite/Rollup from detecting node:* imports
-        const { createRequire } = await import('module');
-        const require = createRequire(import.meta.url);
+        // Use eval to completely hide the require from the bundler
+        // This prevents Vite/Rollup from detecting and externalizing node:* modules
+        const _require = (0, eval)('require');
         return {
-            fs: require('fs/promises'),
-            path: require('path'),
+            fs: _require('fs/promises'),
+            path: _require('path'),
         };
     }
     async read(key) {
