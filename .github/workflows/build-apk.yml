@@ -223,8 +223,10 @@ jobs:
           echo "sdk.dir=$ANDROID_HOME" > android-app/local.properties
 
       - name: Decode signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
         run: |
-          echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 -d > android-app/birrstack-release.keystore
+          echo "$KEYSTORE_BASE64" | base64 -d > android-app/birrstack-release.keystore
           # Fallback: generate a debug keystore if secret not set
           if [ ! -s android-app/birrstack-release.keystore ]; then
             keytool -genkeypair -v -keystore android-app/birrstack-release.keystore -alias birrstack -keyalg RSA -keysize 2048 -validity 10000 -storepass birrstack123 -keypass birrstack123 -dname "CN=BirrStack, OU=Dev, O=BirrStack, L=Lagos, C=NG"
