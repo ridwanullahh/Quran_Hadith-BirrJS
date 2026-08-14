@@ -108,7 +108,18 @@ export class Router {
             }
         }
         if (!matched) {
-            this.setCurrent(null);
+            // Emit a not-found location instead of null (prevents apps from hanging)
+            const notFoundLocation = {
+                fullPath,
+                path,
+                params: {},
+                query,
+                hash,
+                matched: { path: '*', name: 'not-found' },
+                name: 'not-found',
+                meta: {},
+            };
+            this.setCurrent(notFoundLocation);
             return;
         }
         const location = {
