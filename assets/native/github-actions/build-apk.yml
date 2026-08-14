@@ -1,0 +1,80 @@
+name: Build Android APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools build-tools;34.0.0 platforms;android-34'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Copy web build to Android assets
+        run: |
+          mkdir -p assets/native/android/app/src/main/assets/www
+          cp -r dist/* assets/native/android/app/src/main/assets/www/
+
+      - name: Setup Gradle
+        working-directory: assets/native/android
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          chmod +x gradlew || true
+
+      - name: Build APK
+        working-directory: assets/native/android
+        run: |
+          # Generate build.gradle wrapper if not present
+          cat > build.gradle << 'GRADLE'
+          buildscript {
+              repositories { google(); mavenCentral() }
+              dependencies { classpath 'com.android.tools.build:gradle:8.1.0' }
+          }
+          allprojects { repositories { google(); mavenCentral() } }
+          GRADLE
+
+          # Create gradle wrapper
+          gradle wrapper --gradle-version 8.1
+
+          # Build
+          ./gradlew assembleRelease
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: quran-hadith-apk
+          path: assets/native/android/app/build/outputs/apk/release/*.apk
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: assets/native/android/app/build/outputs/apk/release/*.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
