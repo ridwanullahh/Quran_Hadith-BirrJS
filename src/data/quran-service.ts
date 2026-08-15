@@ -59,10 +59,24 @@ const surahCache = new Map<string, SurahData>();
 // Cache for translation data (loaded once per translation)
 const translationCache = new Map<string, any[]>();
 
+/**
+ * Resolve the app's base URL for fetch calls.
+ * With history-mode routing, deep links like /quran/2 would break relative
+ * fetch paths (./quran/... would resolve to /quran/quran/...). We use the
+ * Vite BASE_URL and resolve it to an absolute path from the domain root.
+ */
+const APP_BASE = (() => {
+  const base = (import.meta as any).env?.BASE_URL || '/';
+  if (base.startsWith('./') || base.startsWith('../') || base === '.') {
+    return '/';
+  }
+  return base.endsWith('/') ? base : base + '/';
+})();
+
 async function loadTranslationFile(file: string): Promise<any[]> {
   if (translationCache.has(file)) return translationCache.get(file)!;
   try {
-    const resp = await fetch(`./quran/translations/${file}`);
+    const resp = await fetch(`${APP_BASE}quran/translations/${file}`);
     if (!resp.ok) throw new Error(`Failed to load ${file}`);
     const data = await resp.json();
     translationCache.set(file, data);
@@ -83,7 +97,7 @@ export async function loadSurah(surahNumber: number, translationCode: Translatio
   }
 
   // Load the main chapter (Arabic + transliteration)
-  const chapterResp = await fetch(`./quran/chapters/${surahNumber}.json`);
+  const chapterResp = await fetch(`${APP_BASE}quran/chapters/${surahNumber}.json`);
   if (!chapterResp.ok) throw new Error(`Failed to load surah ${surahNumber}`);
   const chapter = await chapterResp.json();
 

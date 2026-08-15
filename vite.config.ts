@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import { birrVitePlugin } from './vite-plugin-birr.js';
 
 export default defineConfig({
-  base: './',  // CRITICAL: relative paths for PaaS subdirectory hosting
+  base: '/',  // History-mode SPA: absolute paths so deep links like /quran/2 resolve assets correctly
   plugins: [birrVitePlugin()],
   server: {
     port: 5181,

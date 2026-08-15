@@ -18,6 +18,11 @@ function compilePath(path) {
     let pattern = path
         .replace(/\/+$/, '') // trailing slash
         .replace(/\//g, '\\/');
+    // Root path ("/" stripped to "") should match both "/" and "" so the
+    // home route works correctly when the browser is at the domain root.
+    if (pattern === '') {
+        pattern = '\\/?';
+    }
     pattern = pattern.replace(/:([A-Za-z_][A-Za-z0-9_]*)/g, (_, name) => {
         paramNames.push(name);
         return '([^/]+)';
@@ -58,6 +63,9 @@ export class Router {
     /** The current route (reactive). */
     current;
     setCurrent;
+    // Internal navigation stack for proper back/forward within the app
+    navStack = [];
+    navIndex = -1;
     constructor(options) {
         this.mode = options.mode ?? 'history';
         this.base = options.base ?? '';
@@ -69,12 +77,39 @@ export class Router {
         if (typeof window !== 'undefined') {
             if (this.mode === 'history') {
                 window.addEventListener('popstate', () => this.handleLocationChange());
+                // SPA fallback for static hosts: if the page was redirected from 404.html,
+                // restore the original path from the query string.
+                // The 404.html redirect format is: /?/original/path
+                const search = window.location.search;
+                if (search.startsWith('?/') || search.startsWith('?&')) {
+                    const path = search.slice(2).split('&')[0] || '/';
+                    // Clean the URL to the original path
+                    window.history.replaceState({}, '', this.base + path);
+                }
             }
             else {
                 window.addEventListener('hashchange', () => this.handleLocationChange());
             }
-            // Initial resolve
+            // Handle direct URL access (SPA fallback)
+            // On initial load, resolve the current URL
             this.handleLocationChange();
+            // For history mode, intercept link clicks to prevent full page reloads
+            if (this.mode === 'history') {
+                document.addEventListener('click', (e) => {
+                    const target = e.target;
+                    const link = target.closest('a');
+                    if (!link)
+                        return;
+                    const href = link.getAttribute('href');
+                    if (!href || href.startsWith('http') || href.startsWith('#') || link.target === '_blank')
+                        return;
+                    // Only intercept internal links
+                    if (href.startsWith('/') || href.startsWith('./')) {
+                        e.preventDefault();
+                        this.push(href);
+                    }
+                });
+            }
         }
     }
     getFullPath() {
@@ -170,8 +205,15 @@ export class Router {
     }
     /** Programmatic navigation. */
     push(path) {
+        // Track navigation in internal stack
+        if (this.navIndex < this.navStack.length - 1) {
+            // We're in the middle of the stack, truncate forward history
+            this.navStack = this.navStack.slice(0, this.navIndex + 1);
+        }
+        this.navStack.push(path);
+        this.navIndex = this.navStack.length - 1;
         if (this.mode === 'history') {
-            window.history.pushState({}, '', this.base + path);
+            window.history.pushState({ birrPath: path }, '', this.base + path);
             this.handleLocationChange();
         }
         else {
@@ -180,21 +222,59 @@ export class Router {
     }
     /** Replace current entry. */
     replace(path) {
+        if (this.navStack.length > 0) {
+            this.navStack[this.navIndex] = path;
+        }
+        else {
+            this.navStack.push(path);
+            this.navIndex = 0;
+        }
         if (this.mode === 'history') {
-            window.history.replaceState({}, '', this.base + path);
+            window.history.replaceState({ birrPath: path }, '', this.base + path);
             this.handleLocationChange();
         }
         else {
             window.location.replace(`#${path}`);
         }
     }
-    /** Go back in history. */
+    /** Go back within the app's navigation stack. */
     back() {
-        window.history.back();
+        if (this.navIndex > 0) {
+            this.navIndex--;
+            const path = this.navStack[this.navIndex];
+            if (this.mode === 'history') {
+                window.history.pushState({ birrPath: path }, '', this.base + path);
+                this.handleLocationChange();
+            }
+            else {
+                window.location.hash = path;
+            }
+        }
+        else {
+            // No more app history — go to browser's previous page
+            window.history.back();
+        }
     }
-    /** Go forward in history. */
+    /** Go forward within the app's navigation stack. */
     forward() {
-        window.history.forward();
+        if (this.navIndex < this.navStack.length - 1) {
+            this.navIndex++;
+            const path = this.navStack[this.navIndex];
+            if (this.mode === 'history') {
+                window.history.pushState({ birrPath: path }, '', this.base + path);
+                this.handleLocationChange();
+            }
+            else {
+                window.location.hash = path;
+            }
+        }
+        else {
+            window.history.forward();
+        }
+    }
+    /** Check if there's a previous page in the app's navigation stack. */
+    canGoBack() {
+        return this.navIndex > 0;
     }
     /** Register a global navigation guard. */
     beforeEach(guard) {

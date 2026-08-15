@@ -27,6 +27,12 @@ export { configureLoader, showLoader, hideLoader, isLoading, mountLoader, withLo
 export { renderToString, renderToDocument, } from './ssr/index.js';
 // Utility CSS (Tailwind-like)
 export { configureUtilities, generateUtilityCss, injectUtilityCss, } from './utils/index.js';
+// Hooks (React-like, optional)
+export { useEffect, useStore, useMemo, useCallback, useRef, useState, useToggle, usePrevious, useDebounce, } from './hooks/index.js';
+// Security & form sanitization
+export { sanitizeHtml, stripHtml, isValidEmail, isValidUrl, isValidPhone, isStrongPassword, sanitizeSql, truncate, generateCSRFToken, RateLimiter, validateForm, generateCSP, } from './security/index.js';
+// Icons (inline SVG, no external dependency)
+export { icon, iconPath, iconElement, iconNames, } from './icons/index.js';
 /** BirrStack version. */
-export const VERSION = '0.0.3';
+export const VERSION = '0.0.5';
 //# sourceMappingURL=index.js.map

@@ -66,6 +66,8 @@ export declare class Router {
     /** The current route (reactive). */
     readonly current: ReadonlySignal<RouteLocation | null>;
     private setCurrent;
+    private navStack;
+    private navIndex;
     constructor(options: RouterOptions);
     private getFullPath;
     private handleLocationChange;
@@ -73,10 +75,12 @@ export declare class Router {
     push(path: string): void;
     /** Replace current entry. */
     replace(path: string): void;
-    /** Go back in history. */
+    /** Go back within the app's navigation stack. */
     back(): void;
-    /** Go forward in history. */
+    /** Go forward within the app's navigation stack. */
     forward(): void;
+    /** Check if there's a previous page in the app's navigation stack. */
+    canGoBack(): boolean;
     /** Register a global navigation guard. */
     beforeEach(guard: (to: RouteLocation, from: RouteLocation | null) => boolean | string | Promise<boolean | string>): void;
     /** Subscribe to route changes. Returns an unsubscribe function. */
