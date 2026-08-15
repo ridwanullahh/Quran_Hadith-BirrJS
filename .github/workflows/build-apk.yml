@@ -24,27 +24,14 @@ jobs:
         with:
           packages: 'platforms;android-34 build-tools;34.0.0'
       - run: npm install
-      - run: npm run build
-      - name: Fix index.html for APK (file:// protocol)
-        run: |
-          # Android WebView with file:// protocol doesn't support ES modules (type="module")
-          # Fix: rewrite script tags to use regular type and absolute file:// paths
-          INDEX_FILE="dist/index.html"
-          if [ -f "$INDEX_FILE" ]; then
-            # Replace type="module" with type="text/javascript"
-            sed -i 's/type="module"/type="text\/javascript"/g' "$INDEX_FILE"
-            # Replace ./assets/ with assets/ (relative without ./ works better in file://)
-            sed -i 's|src="./assets/|src="assets/|g' "$INDEX_FILE"
-            sed -i 's|href="./assets/|href="assets/|g' "$INDEX_FILE"
-            echo "Fixed index.html for APK:"
-            cat "$INDEX_FILE"
-          fi
+      - name: Build web app (single file for APK)
+        run: npx vite build --config vite.config.apk.ts
       - name: Prepare Android project
         run: |
           mkdir -p android/app/src/main/java/com/birrstack/quranhadith
           mkdir -p android/app/src/main/assets/www
           mkdir -p android/app/src/main/res/values
-          cp -r dist/* android/app/src/main/assets/www/
+          cp dist-apk/index.html android/app/src/main/assets/www/index.html
 
           cat > android/app/src/main/AndroidManifest.xml << 'X'
           <?xml version="1.0" encoding="utf-8"?>
@@ -114,8 +101,8 @@ jobs:
                   applicationId "com.birrstack.quranhadith"
                   minSdk 21
                   targetSdk 34
-                  versionCode 4
-                  versionName "1.4.0"
+                  versionCode 5
+                  versionName "0.0.2"
               }
               signingConfigs {
                   release {
