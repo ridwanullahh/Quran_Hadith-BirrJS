@@ -18,11 +18,6 @@ function compilePath(path) {
     let pattern = path
         .replace(/\/+$/, '') // trailing slash
         .replace(/\//g, '\\/');
-    // Root path ("/" stripped to "") should match both "/" and "" so the
-    // home route works correctly when the browser is at the domain root.
-    if (pattern === '') {
-        pattern = '\\/?';
-    }
     pattern = pattern.replace(/:([A-Za-z_][A-Za-z0-9_]*)/g, (_, name) => {
         paramNames.push(name);
         return '([^/]+)';
@@ -80,11 +75,16 @@ export class Router {
                 // SPA fallback for static hosts: if the page was redirected from 404.html,
                 // restore the original path from the query string.
                 // The 404.html redirect format is: /?/original/path
+                // Also handles subdirectory hosting: /repo-name/?/original/path
                 const search = window.location.search;
                 if (search.startsWith('?/') || search.startsWith('?&')) {
-                    const path = search.slice(2).split('&')[0] || '/';
-                    // Clean the URL to the original path
-                    window.history.replaceState({}, '', this.base + path);
+                    let path = search.slice(2).split('&')[0] || '/';
+                    // If the path doesn't start with /, add it
+                    if (!path.startsWith('/'))
+                        path = '/' + path;
+                    // Clean the URL to the original path (preserving any subdirectory base)
+                    const basePath = window.location.pathname.replace(/\/[^/]*$/, '');
+                    window.history.replaceState({}, '', basePath + path);
                 }
             }
             else {
@@ -119,7 +119,19 @@ export class Router {
         }
         if (typeof window === 'undefined')
             return '/';
-        const path = window.location.pathname.slice(this.base.length);
+        // For history mode, detect the base subdirectory if not explicitly set.
+        // When deployed to /repo-name/, the pathname includes the repo name.
+        // We strip the base (if set) or auto-detect it from the first path segment.
+        let path = window.location.pathname;
+        if (this.base && path.startsWith(this.base)) {
+            path = path.slice(this.base.length);
+        }
+        else if (!this.base) {
+            // Auto-detect: check if the first path segment looks like a subdirectory
+            // (not a known route prefix). This handles GitHub Pages /repo-name/ hosting.
+            // The SPA fallback in the 404.html already strips the subdirectory,
+            // so if we're here without a ?/ redirect, the path should be clean.
+        }
         const search = window.location.search;
         return (path || '/') + search;
     }

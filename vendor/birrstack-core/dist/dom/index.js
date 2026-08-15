@@ -8,34 +8,6 @@
  */
 import { effect, isReactive } from '../signals/index.js';
 /**
- * Attributes that map to DOM *properties* (not just attribute strings).
- * Setting these via setAttribute() does not actually update the rendered
- * content (e.g. setAttribute('innerHTML', ...) leaves the element empty),
- * so we special-case them to use direct property assignment. This is what
- * makes `birr:bind:innerHTML="icon('book-open')"` actually render the SVG.
- */
-const PROPERTY_ATTRS = new Set(['innerHTML', 'textContent', 'value', 'innerText']);
-/** Apply a single attribute/property value to an element. */
-function applyAttrValue(el, attr, v) {
-    if (v === null || v === undefined || v === false) {
-        if (PROPERTY_ATTRS.has(attr)) {
-            el[attr] = '';
-        }
-        else if (attr === 'class') {
-            el.removeAttribute('class');
-        }
-        else {
-            el.removeAttribute(attr);
-        }
-        return;
-    }
-    if (PROPERTY_ATTRS.has(attr)) {
-        el[attr] = String(v);
-        return;
-    }
-    el.setAttribute(attr, String(v));
-}
-/**
  * Create an element with attributes and children in a single call.
  * Avoids the verbosity of createElement + setAttribute + appendChild.
  */
@@ -61,7 +33,7 @@ export function h(tag, props = {}, children = []) {
             }
         }
         else if (value !== null && value !== undefined && value !== false) {
-            applyAttrValue(el, key, value);
+            el.setAttribute(key, String(value));
         }
     }
     for (const child of children) {
@@ -97,11 +69,17 @@ export function bindAttr(el, attr, value) {
     if (isReactive(value)) {
         const reactive = value;
         effect(() => {
-            applyAttrValue(el, attr, reactive.value);
+            const v = reactive.value;
+            if (v === null || v === undefined || v === false) {
+                el.removeAttribute(attr);
+            }
+            else {
+                el.setAttribute(attr, String(v));
+            }
         });
     }
     else if (value !== null && value !== undefined && value !== false) {
-        applyAttrValue(el, attr, value);
+        el.setAttribute(attr, String(value));
     }
 }
 /** Bind a conditional (birr:if) — insert/remove the element based on a reactive boolean. */
