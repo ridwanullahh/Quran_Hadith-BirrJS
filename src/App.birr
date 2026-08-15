@@ -55,7 +55,7 @@
               <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <h3>Hadith</h3>
-            <p>6 Collections - 1200 hadiths</p>
+            <p>{{ hadithStatsText }}</p>
           </div>
         </div>
 
@@ -130,7 +130,7 @@
 
       <div birr:if="isHadithList" class="page">
         <h2 class="page-title">Hadith Collections</h2>
-        <p class="page-subtitle">The Six Major Collections - 1200 hadiths</p>
+        <p class="page-subtitle">{{ hadithStatsText }}</p>
         <div class="collection-list">
           <div birr:for="col in hadithCollections" birr:key="col.key" class="collection-item" birr:on:click="openCollection(col.key)">
             <div class="collection-icon">
@@ -224,7 +224,7 @@
 <script>
 import { signal, computed } from 'birrstack-core';
 import { TRANSLATIONS, RECITERS, loadSurah, getAyahAudioUrl, SURAHS_META } from './data/quran-service';
-import { getCollections, getHadiths, searchHadiths, getRandomHadith } from './data/hadith-service';
+import { getCollections, getHadiths, searchHadiths, getRandomHadith, getCollectionCount, TOTAL_HADITHS } from './data/hadith-service';
 import { getThemeSignal, toggleTheme } from './lib/theme';
 import { getBookmarks, addBookmark, removeBookmark } from './lib/db';
 
@@ -343,8 +343,9 @@ export default {
       } catch (e) { console.error('Download error:', e); }
     }
 
-    // Hadith data
-    const hadithCollections = getCollections().map(c => ({ ...c, count: 200 }));
+    // Hadith data — 16 collections, full counts from BirrDB extraction
+    const hadithCollections = getCollections().map(c => ({ ...c, count: getCollectionCount(c.key) }));
+    const hadithStatsText = `${hadithCollections.length} Collections - ${TOTAL_HADITHS.toLocaleString()} hadiths`;
     const currentHadiths = signal([]);
     const currentHadithsCount = computed(() => currentHadiths.value.length);
     const currentCollectionName = computed(() => {
@@ -446,7 +447,7 @@ export default {
       allSurahs, quickSurahs, surahNumber, currentSurahNumber, currentSurahName, currentSurahType, currentSurahAyahCount,
       currentAyahs, isLoadingSurah, openSurah,
       playAyah, downloadAyahAudio,
-      hadithCollections, currentHadiths, currentHadithsCount, currentCollectionName, openCollection,
+      hadithCollections, hadithStatsText, currentHadiths, currentHadithsCount, currentCollectionName, openCollection,
       dailyHadith,
       searchQuery, searchResults, onSearchInput, openSearchResult,
       bookmarks, loadBookmarks, toggleBookmark, deleteBookmark, openBookmark,

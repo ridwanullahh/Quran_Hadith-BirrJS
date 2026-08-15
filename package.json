@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview --host --port 4173",
-    "extract-hadith": "node scripts/extract-hadith.cjs"
+    "extract-hadith": "node scripts/extract-hadith.cjs",
+    "extract-all-hadith": "node scripts/extract-all-hadith.cjs"
   },
   "dependencies": {
     "birrstack-compiler": "file:./vendor/birrstack-compiler",
