@@ -13,34 +13,25 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-
       - uses: android-actions/setup-android@v3
         with:
           packages: 'platforms;android-34 build-tools;34.0.0'
-
-      - name: Install deps
-        run: npm install
-
-      - name: Build web
-        run: npm run build
-
+      - run: npm install
+      - run: npm run build
       - name: Setup Android
         run: |
           mkdir -p android/app/src/main/java/com/birrstack/quranhadith
           mkdir -p android/app/src/main/assets/www
           mkdir -p android/app/src/main/res/values
           cp -r dist/* android/app/src/main/assets/www/
-
-          cat > android/app/src/main/AndroidManifest.xml << 'EOF'
+          cat > android/app/src/main/AndroidManifest.xml << 'X'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <application android:label="Quran Hadith" android:icon="@android:drawable/ic_dialog_info" android:theme="@android:style/Theme.Material.NoActionBar">
@@ -53,9 +44,8 @@ jobs:
               </application>
               <uses-permission android:name="android.permission.INTERNET" />
           </manifest>
-          EOF
-
-          cat > android/app/src/main/java/com/birrstack/quranhadith/MainActivity.java << 'EOF'
+          X
+          cat > android/app/src/main/java/com/birrstack/quranhadith/MainActivity.java << 'X'
           package com.birrstack.quranhadith;
           import android.app.Activity;
           import android.os.Bundle;
@@ -82,20 +72,17 @@ jobs:
                   else super.onBackPressed();
               }
           }
-          EOF
-
-          cat > android/settings.gradle << 'EOF'
+          X
+          cat > android/settings.gradle << 'X'
           pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
           dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS); repositories { google(); mavenCentral() } }
           include ':app'
           rootProject.name = "QuranHadith"
-          EOF
-
-          cat > android/build.gradle << 'EOF'
+          X
+          cat > android/build.gradle << 'X'
           plugins { id 'com.android.application' version '8.1.0' apply false }
-          EOF
-
-          cat > android/app/build.gradle << 'EOF'
+          X
+          cat > android/app/build.gradle << 'X'
           plugins { id 'com.android.application' }
           android {
               namespace 'com.birrstack.quranhadith'
@@ -104,8 +91,8 @@ jobs:
                   applicationId "com.birrstack.quranhadith"
                   minSdk 21
                   targetSdk 34
-                  versionCode 2
-                  versionName "1.2.0"
+                  versionCode 3
+                  versionName "1.3.0"
               }
               signingConfigs {
                   release {
@@ -123,65 +110,30 @@ jobs:
               }
           }
           dependencies { implementation 'androidx.webkit:webkit:1.10.0' }
-          EOF
-
-          cat > android/gradle.properties << 'EOF'
+          X
+          cat > android/gradle.properties << 'X'
           android.useAndroidX=true
           android.enableJetifier=true
           org.gradle.jvmargs=-Xmx2048m
-          EOF
-
+          X
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
-
-      - name: Decode signing keystore
-        env:
-          KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
-        run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > android/birrstack-release.keystore
-          else
-            keytool -genkeypair -v -keystore android/birrstack-release.keystore -alias birrstack -keyalg RSA -keysize 2048 -validity 10000 -storepass birrstack123 -keypass birrstack123 -dname "CN=BirrStack, OU=Dev, O=BirrStack, L=Lagos, C=NG"
-          fi
-
+          keytool -genkeypair -v -keystore android/birrstack-release.keystore -alias birrstack -keyalg RSA -keysize 2048 -validity 10000 -storepass birrstack123 -keypass birrstack123 -dname "CN=BirrStack, OU=Dev, O=BirrStack, L=Lagos, C=NG"
       - uses: gradle/gradle-build-action@v2
         with:
           gradle-version: '8.1'
           build-root-directory: android
-
-      - name: Build signed APK
+      - name: Build APK
         working-directory: android
         run: gradle assembleRelease --no-daemon
-
-      - name: Sign APK with apksigner (belt and suspenders)
-        env:
-          APP_VERSION: ${{ github.ref_name }}
-        run: |
-          APK_PATH=$(find android/app/build/outputs/apk/release -name "*.apk" | head -1)
-          if [ -n "$APK_PATH" ]; then
-            # Use apksigner to ensure proper v2 signing
-            $ANDROID_HOME/build-tools/34.0.0/apksigner sign \
-              --ks android/birrstack-release.keystore \
-              --ks-key-alias birrstack \
-              --ks-pass pass:birrstack123 \
-              --key-pass pass:birrstack123 \
-              "$APK_PATH"
-            # Verify the signature
-            $ANDROID_HOME/build-tools/34.0.0/apksigner verify --verbose "$APK_PATH"
-            # Copy with proper name
-            cp "$APK_PATH" "Quran-Hadith-$APP_VERSION.apk"
-          fi
-
-      - name: Upload
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: quran-hadith-apk
-          path: "Quran-Hadith-*.apk"
-
+          path: android/app/build/outputs/apk/release/*.apk
       - name: Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: "Quran-Hadith-*.apk"
+          files: android/app/build/outputs/apk/release/*.apk
           name: "Quran Hadith ${{ github.ref_name }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
