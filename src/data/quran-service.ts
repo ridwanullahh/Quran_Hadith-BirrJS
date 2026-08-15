@@ -13,12 +13,17 @@
 
 // Available translations
 
-// Resolve a path relative to the app root, not the current page.
-// When deployed to a subdirectory, fetch paths must resolve from the base.
-function appPath(path: string): string {
-  if (typeof window === 'undefined') return path;
-  const basePath = window.location.pathname.replace(/\/[^\/]*$/, '/');
-  return basePath + path;
+/** Get the app's base path for fetch calls. Works with subdirectory hosting. */
+function getBasePath(): string {
+  if (typeof document === 'undefined') return '/';
+  const scripts = document.querySelectorAll('script[src]');
+  for (const s of scripts) {
+    const src = s.getAttribute('src') || '';
+    const match = src.match(/^(.*?)assets\//);
+    if (match) return match[1] || '/';
+  }
+  const path = window.location.pathname;
+  return path.substring(0, path.lastIndexOf('/') + 1) || '/';
 }
 
 export const TRANSLATIONS = [
@@ -71,7 +76,7 @@ const translationCache = new Map<string, any[]>();
 async function loadTranslationFile(file: string): Promise<any[]> {
   if (translationCache.has(file)) return translationCache.get(file)!;
   try {
-    const resp = await fetch(appPath(`quran/translations/${file}`));
+    const resp = await fetch(`${getBasePath()}quran/translations/${file}`);
     if (!resp.ok) throw new Error(`Failed to load ${file}`);
     const data = await resp.json();
     translationCache.set(file, data);
@@ -92,7 +97,7 @@ export async function loadSurah(surahNumber: number, translationCode: Translatio
   }
 
   // Load the main chapter (Arabic + transliteration)
-  const chapterResp = await fetch(appPath(`quran/chapters/${surahNumber}.json`));
+  const chapterResp = await fetch(`${getBasePath()}quran/chapters/${surahNumber}.json`);
   if (!chapterResp.ok) throw new Error(`Failed to load surah ${surahNumber}`);
   const chapter = await chapterResp.json();
 

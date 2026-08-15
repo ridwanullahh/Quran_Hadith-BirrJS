@@ -20,6 +20,26 @@
 import collectionsMeta from './hadith-full/collections.json';
 import { deserializeColumn } from 'birrstack-db';
 
+
+/** Get the app's base path for fetch calls. Works with subdirectory hosting. */
+function getBasePath(): string {
+  if (typeof document === 'undefined') return '/';
+  // Find the script tag that loaded this module
+  const scripts = document.querySelectorAll('script[src]');
+  for (const s of scripts) {
+    const src = s.getAttribute('src') || '';
+    // Vite outputs: ./assets/index-xxx.js or assets/index-xxx.js
+    // The base path is everything before 'assets/'
+    const match = src.match(/^(.*?)assets\//);
+    if (match) {
+      return match[1] || '/';
+    }
+  }
+  // Fallback: use the directory part of the current URL
+  const path = window.location.pathname;
+  return path.substring(0, path.lastIndexOf('/') + 1) || '/';
+}
+
 export interface HadithData {
   urn: string;
   number: number;
@@ -139,13 +159,10 @@ export async function getHadiths(collectionKey: string): Promise<HadithData[]> {
   if (!col || col.hadithCount === 0) return [];
 
   try {
-    // Build the fetch URL relative to the app root, not the current page.
-      // When deployed to a subdirectory (e.g. /Quran_Hadith-BirrJS/), we need
-      // to resolve from the base path, not from the current route.
-      const basePath = (typeof window !== 'undefined' && window.location.pathname)
-        ? window.location.pathname.replace(/\/[^\/]*$/, '/')
-        : '/';
-      const resp = await fetch(`${basePath}hadith-full/${collectionKey}.json.gz`);
+    // Resolve fetch URL from the document base, not the current route.
+    // The script tag's src tells us where the app is deployed.
+    const base = getBasePath();
+    const resp = await fetch(`${base}hadith-full/${collectionKey}.json.gz`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const text = await decompressGzip(resp);
     const serialized = JSON.parse(text);
