@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build APK
 
 on:
   push:
@@ -12,52 +12,45 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v3
         with:
-          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build web app
-        run: npm run build
-
+          packages: 'platforms;android-34 build-tools;34.0.0'
+      - run: npm install
+      - run: npm run build
+      - name: Fix index.html for APK (file:// protocol)
+        run: |
+          # Android WebView with file:// protocol doesn't support ES modules (type="module")
+          # Fix: rewrite script tags to use regular type and absolute file:// paths
+          INDEX_FILE="dist/index.html"
+          if [ -f "$INDEX_FILE" ]; then
+            # Replace type="module" with type="text/javascript"
+            sed -i 's/type="module"/type="text\/javascript"/g' "$INDEX_FILE"
+            # Replace ./assets/ with assets/ (relative without ./ works better in file://)
+            sed -i 's|src="./assets/|src="assets/|g' "$INDEX_FILE"
+            sed -i 's|href="./assets/|href="assets/|g' "$INDEX_FILE"
+            echo "Fixed index.html for APK:"
+            cat "$INDEX_FILE"
+          fi
       - name: Prepare Android project
         run: |
-          mkdir -p android-app/app/src/main/java/com/birrstack/quranhadith
-          mkdir -p android-app/app/src/main/assets/www
-          mkdir -p android-app/app/src/main/res/values
-          cp -r dist/* android-app/app/src/main/assets/www/
+          mkdir -p android/app/src/main/java/com/birrstack/quranhadith
+          mkdir -p android/app/src/main/assets/www
+          mkdir -p android/app/src/main/res/values
+          cp -r dist/* android/app/src/main/assets/www/
 
-          # AndroidManifest.xml
-          cat > android-app/app/src/main/AndroidManifest.xml << 'MANIFEST'
+          cat > android/app/src/main/AndroidManifest.xml << 'X'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <application
-                  android:label="Quran Hadith"
-                  android:icon="@android:drawable/ic_dialog_info"
-                  android:theme="@android:style/Theme.Material.NoActionBar"
-                  android:allowBackup="false"
-                  android:usesCleartextTraffic="true">
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true"
-                      android:configChanges="orientation|screenSize|keyboardHidden">
+              <application android:label="Quran Hadith" android:icon="@android:drawable/ic_dialog_info" android:theme="@android:style/Theme.Material.NoActionBar" android:usesCleartextTraffic="true">
+                  <activity android:name=".MainActivity" android:exported="true" android:configChanges="orientation|screenSize|keyboardHidden">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
@@ -66,10 +59,9 @@ jobs:
               </application>
               <uses-permission android:name="android.permission.INTERNET" />
           </manifest>
-          MANIFEST
+          X
 
-          # MainActivity.java
-          cat > android-app/app/src/main/java/com/birrstack/quranhadith/MainActivity.java << 'JAVA'
+          cat > android/app/src/main/java/com/birrstack/quranhadith/MainActivity.java << 'X'
           package com.birrstack.quranhadith;
           import android.app.Activity;
           import android.os.Bundle;
@@ -83,11 +75,14 @@ jobs:
                   super.onCreate(savedInstanceState);
                   webView = new WebView(this);
                   setContentView(webView);
-                  WebSettings settings = webView.getSettings();
-                  settings.setJavaScriptEnabled(true);
-                  settings.setDomStorageEnabled(true);
-                  settings.setAllowFileAccess(true);
-                  settings.setMediaPlaybackRequiresUserGesture(false);
+                  WebSettings s = webView.getSettings();
+                  s.setJavaScriptEnabled(true);
+                  s.setDomStorageEnabled(true);
+                  s.setAllowFileAccess(true);
+                  s.setAllowContentAccess(true);
+                  s.setMediaPlaybackRequiresUserGesture(false);
+                  s.setAllowFileAccessFromFileURLs(true);
+                  s.setAllowUniversalAccessFromFileURLs(true);
                   webView.setWebViewClient(new WebViewClient());
                   webView.loadUrl("file:///android_asset/www/index.html");
               }
@@ -97,92 +92,73 @@ jobs:
                   else super.onBackPressed();
               }
           }
-          JAVA
+          X
 
-          # strings.xml
-          cat > android-app/app/src/main/res/values/strings.xml << 'STRINGS'
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <string name="app_name">Quran Hadith</string>
-          </resources>
-          STRINGS
-
-          # settings.gradle
-          cat > android-app/settings.gradle << 'GRADLE'
-          pluginManagement {
-              repositories { google(); mavenCentral(); gradlePluginPortal() }
-          }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
-              repositories { google(); mavenCentral() }
-          }
+          cat > android/settings.gradle << 'X'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS); repositories { google(); mavenCentral() } }
           include ':app'
           rootProject.name = "QuranHadith"
-          GRADLE
+          X
 
-          # build.gradle (project)
-          cat > android-app/build.gradle << 'GRADLE'
-          plugins {
-              id 'com.android.application' version '8.1.0' apply false
-          }
-          GRADLE
+          cat > android/build.gradle << 'X'
+          plugins { id 'com.android.application' version '8.1.0' apply false }
+          X
 
-          # app/build.gradle
-          cat > android-app/app/build.gradle << 'GRADLE'
+          cat > android/app/build.gradle << 'X'
           plugins { id 'com.android.application' }
           android {
               namespace 'com.birrstack.quranhadith'
               compileSdk 34
               defaultConfig {
                   applicationId "com.birrstack.quranhadith"
-                  minSdk 24
+                  minSdk 21
                   targetSdk 34
-                  versionCode 1
-                  versionName "1.0.0"
+                  versionCode 4
+                  versionName "1.4.0"
+              }
+              signingConfigs {
+                  release {
+                      storeFile file('../birrstack-release.keystore')
+                      storePassword 'birrstack123'
+                      keyAlias 'birrstack'
+                      keyPassword 'birrstack123'
+                  }
               }
               buildTypes {
                   release {
                       minifyEnabled false
-                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+                      signingConfig signingConfigs.release
                   }
               }
           }
           dependencies { implementation 'androidx.webkit:webkit:1.10.0' }
-          GRADLE
+          X
 
-          # gradle.properties
-          cat > android-app/gradle.properties << 'PROPS'
+          cat > android/gradle.properties << 'X'
           android.useAndroidX=true
           android.enableJetifier=true
           org.gradle.jvmargs=-Xmx2048m
-          PROPS
+          X
 
-          # local.properties
-          echo "sdk.dir=$ANDROID_HOME" > android-app/local.properties
-
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
+          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+          keytool -genkeypair -v -keystore android/birrstack-release.keystore -alias birrstack -keyalg RSA -keysize 2048 -validity 10000 -storepass birrstack123 -keypass birrstack123 -dname "CN=BirrStack, OU=Dev, O=BirrStack, L=Lagos, C=NG"
+      - uses: gradle/gradle-build-action@v2
         with:
           gradle-version: '8.1'
-          build-root-directory: android-app
-
+          build-root-directory: android
       - name: Build APK
-        working-directory: android-app
-        run: gradle assembleRelease --no-daemon --stacktrace
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+        working-directory: android
+        run: gradle assembleRelease --no-daemon
+      - uses: actions/upload-artifact@v4
         with:
           name: quran-hadith-apk
-          path: android-app/app/build/outputs/apk/release/*.apk
-
-      - name: Create Release
+          path: android/app/build/outputs/apk/release/*.apk
+      - name: Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: android-app/app/build/outputs/apk/release/*.apk
-          generate_release_notes: true
-          draft: false
-          prerelease: false
+          files: android/app/build/outputs/apk/release/*.apk
+          name: "Quran Hadith ${{ github.ref_name }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
