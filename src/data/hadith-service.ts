@@ -139,7 +139,13 @@ export async function getHadiths(collectionKey: string): Promise<HadithData[]> {
   if (!col || col.hadithCount === 0) return [];
 
   try {
-    const resp = await fetch(`./hadith-full/${collectionKey}.json.gz`);
+    // Build the fetch URL relative to the app root, not the current page.
+      // When deployed to a subdirectory (e.g. /Quran_Hadith-BirrJS/), we need
+      // to resolve from the base path, not from the current route.
+      const basePath = (typeof window !== 'undefined' && window.location.pathname)
+        ? window.location.pathname.replace(/\/[^\/]*$/, '/')
+        : '/';
+      const resp = await fetch(`${basePath}hadith-full/${collectionKey}.json.gz`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const text = await decompressGzip(resp);
     const serialized = JSON.parse(text);

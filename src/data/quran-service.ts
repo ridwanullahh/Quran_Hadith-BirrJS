@@ -12,6 +12,15 @@
  */
 
 // Available translations
+
+// Resolve a path relative to the app root, not the current page.
+// When deployed to a subdirectory, fetch paths must resolve from the base.
+function appPath(path: string): string {
+  if (typeof window === 'undefined') return path;
+  const basePath = window.location.pathname.replace(/\/[^\/]*$/, '/');
+  return basePath + path;
+}
+
 export const TRANSLATIONS = [
   { code: 'en', name: 'English', file: 'quran_en.json' },
   { code: 'es', name: 'Spanish', file: 'quran_es.json' },
@@ -62,7 +71,7 @@ const translationCache = new Map<string, any[]>();
 async function loadTranslationFile(file: string): Promise<any[]> {
   if (translationCache.has(file)) return translationCache.get(file)!;
   try {
-    const resp = await fetch(`./quran/translations/${file}`);
+    const resp = await fetch(appPath(`quran/translations/${file}`));
     if (!resp.ok) throw new Error(`Failed to load ${file}`);
     const data = await resp.json();
     translationCache.set(file, data);
@@ -83,7 +92,7 @@ export async function loadSurah(surahNumber: number, translationCode: Translatio
   }
 
   // Load the main chapter (Arabic + transliteration)
-  const chapterResp = await fetch(`./quran/chapters/${surahNumber}.json`);
+  const chapterResp = await fetch(appPath(`quran/chapters/${surahNumber}.json`));
   if (!chapterResp.ok) throw new Error(`Failed to load surah ${surahNumber}`);
   const chapter = await chapterResp.json();
 
