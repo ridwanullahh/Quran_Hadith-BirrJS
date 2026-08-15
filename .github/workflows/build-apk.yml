@@ -153,6 +153,8 @@ jobs:
         run: gradle assembleRelease --no-daemon
 
       - name: Sign APK with apksigner (belt and suspenders)
+        env:
+          APP_VERSION: ${{ github.ref_name }}
         run: |
           APK_PATH=$(find android/app/build/outputs/apk/release -name "*.apk" | head -1)
           if [ -n "$APK_PATH" ]; then
@@ -166,7 +168,7 @@ jobs:
             # Verify the signature
             $ANDROID_HOME/build-tools/34.0.0/apksigner verify --verbose "$APK_PATH"
             # Copy with proper name
-            cp "$APK_PATH" "Quran-Hadith-${{ github.ref_name }}.apk"
+            cp "$APK_PATH" "Quran-Hadith-$APP_VERSION.apk"
           fi
 
       - name: Upload
